@@ -327,7 +327,6 @@ def start_screen(text, mode, level_z = None):
                     menu_sound.stop()
                     menu_tick_sound.play()
                     for level in levels:
-                        clear_all()
                         run_level(level[0], level[1], level[2], level[3], level[4], (int(level[5]), int(level[6]), int(level[7])), level[8], level[9], level[10])
                     break
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_2:
@@ -350,9 +349,10 @@ def start_screen(text, mode, level_z = None):
                     running = False
                     menu_sound.stop()
                     menu_tick_sound.play()
-                    for level in levels:
+                    for i in range(2):
                         clear_all()
-                        run_level(level[0], level[1], level[2], level[3], level[4], (int(level[5]), int(level[6]), int(level[7])), level[8], level[9], level[10])
+                        level_n = levels[i]
+                        run_level(level_n[0], level_n[1], level_n[2], level_n[3], level_n[4], (int(level_n[5]), int(level_n[6]), int(level_n[7])), level_n[8], level_n[9], level_n[10])
                     break
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_2:
                     running = False
@@ -530,7 +530,7 @@ def run_level(level_map, wall_image, ground_image, target_image, portal_image, c
                             textQ = False
                             end_sound.stop()
                             ending_sound.stop()
-                            del(portals, camera,target, level_text, textQ, sound, theme)
+                            del(portals, camera,target, level_text, textQ)
                             start_screen(text1, "start")
                             running = False
                     screen.fill(color)
