@@ -102,10 +102,10 @@ def draw_level(level_map, wall_image, ground_image, queen_image, portal_image, f
 
     return new_player, queen, portals
 
-def draw_text(txt, font_size):
+def draw_text(txt, font_size, color = black):
     pygame.font.init()
     font = pygame.font.Font("C:\\Users\\iriska\\my_project\\kt2\\font\\font.ttf", font_size)
-    text = font.render(txt,1,black)
+    text = font.render(txt,1, color)
     text_w, text_h = text.get_width(), text.get_height()
     text_x = (width - text_w) // 2
     text_y = (height - text_h) // 2
@@ -128,7 +128,7 @@ def clear_all():
 def loading():
     background = load_image('background.jpg')
     screen.blit(background, (0, 0))
-    draw_text("Загрузка...", 50)
+    draw_text("Загрузка...", 50, (181, 24, 24))
     pygame.display.flip()
 
 class Tile(pygame.sprite.Sprite):
@@ -229,19 +229,19 @@ class Player(pygame.sprite.Sprite):
             for i in range(self.health):
                 screen.blit(self.health_image, (x, 25))
                 x +=27
-        elif self.health == 0:
-            game_over_sound.play()
-            screen.blit(load_image('gameover.png'), (125, 61))  
     def draw_keys(self):
         x = 25
         for i in range(self.keys):
             screen.blit(self.key_image, (x, 60))
             x +=27
     def get_damage(self):
-        if self.time % (fps*3/4) == 0:
-            damage_sound.play()
-            self.health -= 1
-        self.time +=2
+        if self.health > 0:
+            if self.time % (fps*3/4) == 0:
+                damage_sound.play()
+                self.health -= 1
+                if self.health == 0:
+                    game_over_sound.play()
+            self.time +=2
     def get_health(self):
         heart_sound.play()
         if self.health < 5:
@@ -281,7 +281,7 @@ class Enemy(pygame.sprite.Sprite):
         self.rect = self.image.get_rect().move(x*cell_size, y*cell_size)
         self.add(all_sprites, enemy_group)
     def move(self):
-        if self.delay % fps == 0:
+        if self.delay % (fps * 3/4) == 0:
             move = choice([[50,0],[-50,0],[0,50],[0,-50]])
             self.rect.move_ip(move)
             if pygame.sprite.spritecollideany(self, walls_group):
@@ -551,6 +551,9 @@ def run_level(level_map, wall_image, ground_image, target_image, portal_image, c
                 del(portals, camera, target, level_text, textQ, sound, theme)
                 running = False
         
+        if player.health <= 0:
+            screen.blit(load_image('gameover.png'), (125, 61))  
+
         pygame.display.flip()
         clock.tick(fps)
     
