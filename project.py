@@ -309,7 +309,7 @@ class Enemy(pygame.sprite.Sprite):
                     self.rect.move_ip([-i for i in move])
 
         self.delay +=1
-        if pygame.sprite.spritecollideany(self, pebbles_group):
+        if pygame.sprite.spritecollideany(self, pebbles_group) and pygame.sprite.spritecollideany(self, pebbles_group).direction:
             pygame.sprite.spritecollideany(self, pebbles_group).kill()
             self.died_sound.play()
             self.hp -=1
