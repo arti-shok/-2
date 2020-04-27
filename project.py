@@ -11,9 +11,9 @@ fps = 60
 clock = pygame.time.Clock()
 cell_size = 50
 black = 0, 0, 0
+way = "C:\\Users\\iriska\\my_project\\"
 
-
-with open("C:\\Users\\iriska\\my_project\\kt2\\levels\\levels.txt", "r") as f:
+with open(way + "kt2\\levels\\levels.txt", "r") as f:
     levels = []
     lines = reader(f)
     for line in lines:
@@ -23,13 +23,13 @@ text2 = ["","1. Первый уровень. Джунгли", "2. Второй �
 text3 = ["","1. Продолжить", "2. Начать сначала", "3. Вернуться в меню", "4. Выйти из игры"]
 
 def load_sound(name, volume = 1):
-    fullname = "C:\\Users\\iriska\\my_project\\kt2\\sounds\\"+name
+    fullname = way+ "kt2\\sounds\\"+name
     sound = pygame.mixer.Sound(fullname)
     sound.set_volume(volume)
     return sound
 
 def load_image(name):
-    fullname = "C:\\Users\\iriska\\my_project\\kt2\\sprites\\"+name
+    fullname = way + "kt2\\sprites\\"+name
     if fullname[-3::] == "png": 
         image = pygame.image.load(fullname).convert_alpha()
     else:
@@ -41,7 +41,7 @@ def terminate():
     sys.exit()
 
 def load_level(name):
-    fullname = "C:\\Users\\iriska\\my_project\\kt2\\levels\\" + name
+    fullname = way + "kt2\\levels\\" + name
     with open(fullname, "r") as f:
         level_map = []
         for line in f:
@@ -80,7 +80,7 @@ def draw_level(level_map, wall_image, ground_image, queen_image, portal_image, f
                 Tile("sand.jpg", x, y)
             elif level_map[y][x] == "@":
                 Tile(ground_image, x, y)
-                Enemy("angry_pepe_small.png", x, y)
+                Enemy(choice(["angry_pepe_small.png","angry_pepe_small_2.png","angry_pepe_small_3.png"]), x, y)
             elif level_map[y][x] == "^":
                 Tile(ground_image, x, y)
                 Tile(fire_image, x, y, "fire")
@@ -89,7 +89,7 @@ def draw_level(level_map, wall_image, ground_image, queen_image, portal_image, f
                 Tile(fire_image, x, y, "fire")
             elif level_map[y][x] == "B":
                 Tile(ground_image, x, y)
-                Enemy("rage-pepe.png", x, y)
+                Enemy("rage-pepe.png", x, y, True)
             elif level_map[y][x] == "H":
                 Tile(ground_image, x, y)
                 Tile("health_big.png", x, y, "health")
@@ -99,7 +99,9 @@ def draw_level(level_map, wall_image, ground_image, queen_image, portal_image, f
             elif level_map[y][x] == "K":
                 Tile(ground_image, x, y)
                 Tile("key.png", x, y, "key")
-
+            elif level_map[y][x] == "o":
+                Tile(ground_image, x, y)
+                Pebble(x, y)
     return new_player, queen, portals
 
 def draw_text(txt, font_size, color = black):
@@ -124,6 +126,7 @@ def clear_all():
     lock_group.empty()
     portal_group.empty()
     keys_group.empty()
+    pebbles_group.empty()
 
 def loading():
     background = load_image('background.jpg')
@@ -167,11 +170,13 @@ class Player(pygame.sprite.Sprite):
         self.image = load_image("Pepe.png")
         self.health_image = load_image("health.png")
         self.key_image = load_image("key_small.png")
+        self.pebble_image = load_image("pebble.png")
         self.rect = self.image.get_rect().move(cell_size*x, cell_size*y)
         self.portal = True
         self.health = 5
         self.time = 0
         self.keys = 0
+        self.pebbles = 3
         self.add(player_group, all_sprites)
     def move_up(self):
         if self.health > 0:
@@ -219,8 +224,9 @@ class Player(pygame.sprite.Sprite):
                 portal_sound.play()
                 for i in range(len(portals_n)):
                     if pygame.sprite.collide_rect(self, portals_n[i]):
-                        self.rect.x = portals_n[(i+1) % len(portals_n)].rect.x
-                        self.rect.y = portals_n[(i+1) % len(portals_n)].rect.y
+                        portal_id = choice(range(1,len(portals_n)))
+                        self.rect.x = portals_n[(i+portal_id) % len(portals_n)].rect.x
+                        self.rect.y = portals_n[(i+portal_id) % len(portals_n)].rect.y
                         self.portal = False
                         break
     def draw_health(self):
@@ -234,6 +240,11 @@ class Player(pygame.sprite.Sprite):
         for i in range(self.keys):
             screen.blit(self.key_image, (x, 60))
             x +=27
+    def draw_pebbles(self):
+        x = width - 50
+        for i in range(self.pebbles):
+            screen.blit(self.pebble_image, (x, 25))
+            x -=30
     def get_damage(self):
         if self.health > 0:
             if self.time % (fps*3/4) == 0:
@@ -274,20 +285,83 @@ class Camera:
         self.dy = -(sprite.rect.y + sprite.rect.h // 2 - height // 2)
 
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, image_enemy, x, y):
+    def __init__(self, image_enemy, x, y, boss = False):
         super().__init__(all_sprites, enemy_group)
         self.delay = 0
         self.image = load_image(image_enemy)
+        if boss:
+            self.hp = 5
+            self.died_sound = boss_died_sound
+        else:
+            self.hp = 1
+            self.died_sound = enemy_died_sound
         self.rect = self.image.get_rect().move(x*cell_size, y*cell_size)
         self.add(all_sprites, enemy_group)
-    def move(self):
+    def update(self):
         if self.delay % (fps * 3/4) == 0:
             move = choice([[50,0],[-50,0],[0,50],[0,-50]])
             self.rect.move_ip(move)
-            if pygame.sprite.spritecollideany(self, walls_group):
+            if pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, lock_group) or pygame.sprite.spritecollideany(self, fire_group):
                 self.rect.move_ip([-i for i in move])
-        self.delay +=1
+            rest_enemes = [i for i in enemy_group if i != self]
+            for enemy in rest_enemes:
+                if pygame.sprite.collide_rect(self,enemy):
+                    self.rect.move_ip([-i for i in move])
 
+        self.delay +=1
+        if pygame.sprite.spritecollideany(self, pebbles_group):
+            pygame.sprite.spritecollideany(self, pebbles_group).kill()
+            self.died_sound.play()
+            self.hp -=1
+            if self.hp == 0:
+                self.kill()
+
+class Pebble(pygame.sprite.Sprite):
+    def __init__(self, x, y, direction = False):
+        super().__init__(all_sprites, pebbles_group)
+        self.direction = direction 
+        self.image = load_image("pebble.png")
+        self.rect = self.image.get_rect().move(x * cell_size, y * cell_size)
+        self.add(all_sprites, pebbles_group)
+        self.speed = 0
+    def update(self):
+        if self.direction:
+            if self.direction == 'right':
+                if not(pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, enemy_group) or pygame.sprite.spritecollideany(self, lock_group)):
+                    if self.speed % (fps/12) == 0:
+                        self.rect.x += (cell_size / 2)
+                    self.speed += 1
+                else:
+                    self.kill()
+                    if pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, lock_group):
+                        pebble_wall_sound.play()  
+            elif self.direction == 'left':
+                if not(pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, enemy_group) or pygame.sprite.spritecollideany(self, lock_group)):
+                    if self.speed % (fps/15) == 0:
+                        self.rect.x -= (cell_size / 2)
+                    self.speed += 1
+                else:
+                    self.kill()
+                    if pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, lock_group):
+                        pebble_wall_sound.play()
+            elif self.direction == 'up':
+                if not(pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, enemy_group) or pygame.sprite.spritecollideany(self, lock_group)):
+                    if self.speed % (fps/15) == 0:
+                        self.rect.y -= (cell_size / 2)
+                    self.speed += 1
+                else:
+                    self.kill()
+                    if pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, lock_group):
+                        pebble_wall_sound.play()
+            else:
+                if not(pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, enemy_group) or pygame.sprite.spritecollideany(self, lock_group)):
+                    if self.speed % (fps/15) == 0:
+                        self.rect.y += (cell_size / 2)
+                    self.speed += 1
+                else:
+                    self.kill()
+                    if pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, lock_group):
+                        pebble_wall_sound.play()
 
 def start_screen(text, mode, level_z = None):
     
@@ -429,7 +503,7 @@ def start_screen(text, mode, level_z = None):
 
 def run_level(level_map, wall_image, ground_image, target_image, portal_image, color, fire_image, level_sound, level_theme):
 
-    with open("C:\\Users\\iriska\\my_project\\kt2\\levels\\text_" + level_map, "r", encoding= 'utf8') as f:
+    with open(way + "kt2\\levels\\text_" + level_map, "r", encoding= 'utf8') as f:
         reader = f.readlines()
         level_text = [i.strip() for i in reader]
     player, target, portals = draw_level(load_level(level_map), wall_image, ground_image, target_image, portal_image, fire_image)
@@ -479,13 +553,46 @@ def run_level(level_map, wall_image, ground_image, target_image, portal_image, c
                 player.move_right()
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 start_screen(text3, "pause", level_map)
-           
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_w:
+                if player.pebbles > 0:
+                    throw_sound.play()
+                    Pebble(6, 4, "up")
+                    player.pebbles -= 1
+                else:
+                    none_pebbles_sound.play()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_s:
+                if player.pebbles > 0:
+                    throw_sound.play()
+                    Pebble(6, 4, "down")
+                    player.pebbles -= 1
+                else:
+                    none_pebbles_sound.play()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_d:
+                if player.pebbles > 0:
+                    throw_sound.play()
+                    Pebble(6, 4, "right")
+                    player.pebbles -= 1
+                else:
+                    none_pebbles_sound.play()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_a:
+                if player.pebbles > 0:
+                    throw_sound.play()
+                    Pebble(6, 4, "left")
+                    player.pebbles -= 1
+                else:
+                    none_pebbles_sound.play()
         camera.update(player)
         for sprite in all_sprites:
              camera.apply(sprite)
 
-        for enemy in enemy_group:
-            enemy.move()
+        enemy_group.update()
+        
+        for pebble in pebbles_group:
+            pebble.update()
+            if pygame.sprite.collide_rect(player, pebble) and pebble.direction == False:
+                pebble.kill()
+                player.pebbles += 1
+                find_pebble_sound.play()
 
         if pygame.sprite.spritecollideany(player, portal_group):
             player.move_portal(portals)
@@ -512,8 +619,10 @@ def run_level(level_map, wall_image, ground_image, target_image, portal_image, c
             enemy_group.draw(screen)
             target_group.draw(screen)
             player_group.draw(screen)
+            pebbles_group.draw(screen)
             player.draw_health()
             player.draw_keys()
+            player.draw_pebbles()
         else:
             clear_all()
             sound.stop()
@@ -569,13 +678,12 @@ fire_group = pygame.sprite.Group()
 health_group = pygame.sprite.Group()
 lock_group = pygame.sprite.Group()
 keys_group = pygame.sprite.Group()
-
+pebbles_group = pygame.sprite.Group()
 
 menu_sound = load_sound("menu.wav", 0.3)
 menu_tick_sound = load_sound("Menu_tick.wav")
 pause_close_sound = load_sound("pause_close.wav")
 pause_open_sound = load_sound("pause_open.wav")
-
 lock_sound = load_sound("Door_Closed.wav", 0.7)
 unlock_sound = load_sound("Door_Opened.wav")
 end_sound = load_sound("end.wav", 0.1)
@@ -586,8 +694,12 @@ damage_sound = load_sound("Player_Hit.wav")
 portal_sound = load_sound("portal.wav", 0.4)
 step_sound = load_sound("step_1.wav", 0.4)
 ending_sound = load_sound("theme_level3_2.wav")
+throw_sound = load_sound("throw.wav")
+boss_died_sound = load_sound("boss_died.wav")
+enemy_died_sound = load_sound("throw_enemy.wav")
+pebble_wall_sound = load_sound("throw_wall.wav")
+none_pebbles_sound = load_sound("none_pebbles.wav")
+find_pebble_sound = load_sound("find_pebble.wav")
+
 
 start_screen(text1, "start")
-
-
-terminate()
