@@ -1,19 +1,24 @@
-import pygame, sys
+import pygame, sys, os
 from random import choice
 from csv import reader
 
+
+#инициазизация некоторых переменных
 pygame.init()
 
 size = width, height = 650, 406
 screen = pygame.display.set_mode(size)
-pygame.display.set_caption('pepe')
+pygame.display.set_caption("Pepe's Adventures")
 fps = 60
 clock = pygame.time.Clock()
 cell_size = 50
 black = 0, 0, 0
-way = "C:\\Users\\iriska\\my_project\\"
 
-with open(way + "kt2\\levels\\levels.txt", "r") as f:
+#определение директории, где запущен скрипт
+way = os.path.abspath(__file__)[:-11]
+
+#загрузка данных об уровнях и текст для меню
+with open(way + "\\levels\\levels.txt", "r") as f:
     levels = []
     lines = reader(f)
     for line in lines:
@@ -22,26 +27,30 @@ text1 = ["", "1. Начать игру", "2. Выбор уровня","3. Вых
 text2 = ["","1. Первый уровень. Джунгли", "2. Второй уровень. Ледяная пещера", "3. Третий уровень. Подземелье", "4. Назад"]
 text3 = ["","1. Продолжить", "2. Начать сначала", "3. Вернуться в меню", "4. Выйти из игры"]
 
+#функция для загрузки звуковых файлов
 def load_sound(name, volume = 1):
-    fullname = way+ "kt2\\sounds\\"+name
+    fullname = way+ "\\sounds\\"+name
     sound = pygame.mixer.Sound(fullname)
     sound.set_volume(volume)
     return sound
 
+#функция для загрузки картинок
 def load_image(name):
-    fullname = way + "kt2\\sprites\\"+name
+    fullname = way + "\\sprites\\"+name
     if fullname[-3::] == "png": 
         image = pygame.image.load(fullname).convert_alpha()
     else:
         image = pygame.image.load(fullname).convert()
     return image
 
+#функция, которая закрывает программу
 def terminate():
     pygame.quit()
     sys.exit()
 
+#функция, которая загружает карты уровней
 def load_level(name):
-    fullname = way + "kt2\\levels\\" + name
+    fullname = way + "\\levels\\" + name
     with open(fullname, "r") as f:
         level_map = []
         for line in f:
@@ -49,6 +58,7 @@ def load_level(name):
             level_map.append(line)
     return level_map
 
+#функция, которая отрисовывает карты уровней
 def draw_level(level_map, wall_image, ground_image, queen_image, portal_image, fire_image):
     new_player, x, y, portals = None, None, None, []
     loading()
@@ -92,7 +102,7 @@ def draw_level(level_map, wall_image, ground_image, queen_image, portal_image, f
                 Enemy("rage-pepe.png", x, y, True)
             elif level_map[y][x] == "H":
                 Tile(ground_image, x, y)
-                Tile("health_big.png", x, y, "health")
+                Tile("health.png", x, y, "health")
             elif level_map[y][x] == "L":
                 Tile(ground_image, x, y)
                 Tile("lock.png", x, y, "lock")
@@ -104,15 +114,17 @@ def draw_level(level_map, wall_image, ground_image, queen_image, portal_image, f
                 Pebble(x, y)
     return new_player, queen, portals
 
+#функция, которая выводит текст на экран
 def draw_text(txt, font_size, color = black):
     pygame.font.init()
-    font = pygame.font.Font("C:\\Users\\iriska\\my_project\\kt2\\font\\font.ttf", font_size)
+    font = pygame.font.Font(way + "\\font\\font.ttf", font_size)
     text = font.render(txt,1, color)
     text_w, text_h = text.get_width(), text.get_height()
     text_x = (width - text_w) // 2
     text_y = (height - text_h) // 2
     screen.blit(text,(text_x, text_y))
 
+#функция очистки переменных перед запуском каждого уровня
 def clear_all():
     all_sprites.empty()
     player_group.empty()
@@ -128,12 +140,14 @@ def clear_all():
     keys_group.empty()
     pebbles_group.empty()
 
+#функция, которая выводит экран загрузки, пока рисуется уровень
 def loading():
     background = load_image('background.jpg')
     screen.blit(background, (0, 0))
     draw_text("Загрузка...", 50, (181, 24, 24))
     pygame.display.flip()
 
+#класс блока. рисует блок с нужной текстурой в нужном месте
 class Tile(pygame.sprite.Sprite):
     def __init__(self, image, x, y, group = None):
         if group == "wall":
@@ -164,6 +178,7 @@ class Tile(pygame.sprite.Sprite):
         self.rect = self.image.get_rect().move(cell_size*x, cell_size*y)
         self.add(tiles_group, all_sprites)
 
+#класс игрока. позволяет ГГ перемещаться и взаимодействовать с объектами
 class Player(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__(player_group, all_sprites)
@@ -266,6 +281,7 @@ class Player(pygame.sprite.Sprite):
         self.keys -=1
         lock_n.kill()
 
+#класс королевы. отвечает за цель, до которой нужно добраться на каждом из уровней
 class Queen(pygame.sprite.Sprite):
     def __init__(self, x, y, image_queen):
         super().__init__(target_group, all_sprites)
@@ -273,6 +289,7 @@ class Queen(pygame.sprite.Sprite):
         self.rect = self.image.get_rect().move(cell_size*x, cell_size*y)
         self.add(target_group, all_sprites)
 
+#класс камеры. отвечает за сдвиг всех блоков, чтобы ГГ все время оставался в центре, а карта двигалась
 class Camera:
     def __init__(self):
         self.dx = 0
@@ -284,6 +301,7 @@ class Camera:
         self.dx = -(sprite.rect.x + sprite.rect.w // 2 - width // 2)
         self.dy = -(sprite.rect.y + sprite.rect.h // 2 - height // 2)
 
+#класс врага. определяет поведение враждебных мобов
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, image_enemy, x, y, boss = False):
         super().__init__(all_sprites, enemy_group)
@@ -298,7 +316,7 @@ class Enemy(pygame.sprite.Sprite):
         self.rect = self.image.get_rect().move(x*cell_size, y*cell_size)
         self.add(all_sprites, enemy_group)
     def update(self):
-        if self.delay % (fps * 3/4) == 0:
+        if self.delay % (fps * 1/2) == 0:
             move = choice([[50,0],[-50,0],[0,50],[0,-50]])
             self.rect.move_ip(move)
             if pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, lock_group) or pygame.sprite.spritecollideany(self, fire_group):
@@ -316,6 +334,7 @@ class Enemy(pygame.sprite.Sprite):
             if self.hp == 0:
                 self.kill()
 
+#класс камушка. позволяет поднимать камушки и бросать их, причем урон наносят только брошенные камешки, а статичные ничего не делают
 class Pebble(pygame.sprite.Sprite):
     def __init__(self, x, y, direction = False):
         super().__init__(all_sprites, pebbles_group)
@@ -328,7 +347,7 @@ class Pebble(pygame.sprite.Sprite):
         if self.direction:
             if self.direction == 'right':
                 if not(pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, enemy_group) or pygame.sprite.spritecollideany(self, lock_group)):
-                    if self.speed % (fps/12) == 0:
+                    if self.speed % (fps/20) == 0:
                         self.rect.x += (cell_size / 2)
                     self.speed += 1
                 else:
@@ -337,7 +356,7 @@ class Pebble(pygame.sprite.Sprite):
                         pebble_wall_sound.play()  
             elif self.direction == 'left':
                 if not(pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, enemy_group) or pygame.sprite.spritecollideany(self, lock_group)):
-                    if self.speed % (fps/15) == 0:
+                    if self.speed % (fps/20) == 0:
                         self.rect.x -= (cell_size / 2)
                     self.speed += 1
                 else:
@@ -346,7 +365,7 @@ class Pebble(pygame.sprite.Sprite):
                         pebble_wall_sound.play()
             elif self.direction == 'up':
                 if not(pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, enemy_group) or pygame.sprite.spritecollideany(self, lock_group)):
-                    if self.speed % (fps/15) == 0:
+                    if self.speed % (fps/20) == 0:
                         self.rect.y -= (cell_size / 2)
                     self.speed += 1
                 else:
@@ -355,7 +374,7 @@ class Pebble(pygame.sprite.Sprite):
                         pebble_wall_sound.play()
             else:
                 if not(pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, enemy_group) or pygame.sprite.spritecollideany(self, lock_group)):
-                    if self.speed % (fps/15) == 0:
+                    if self.speed % (fps/20) == 0:
                         self.rect.y += (cell_size / 2)
                     self.speed += 1
                 else:
@@ -363,6 +382,7 @@ class Pebble(pygame.sprite.Sprite):
                     if pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, lock_group):
                         pebble_wall_sound.play()
 
+#функция, которая запускает меню с возможностью выбора уровня
 def start_screen(text, mode, level_z = None):
     
     background = load_image('background.jpg')
@@ -370,14 +390,14 @@ def start_screen(text, mode, level_z = None):
 
     pygame.font.init()
 
-    font = pygame.font.Font("C:\\Users\\iriska\\my_project\\kt2\\font\\font.ttf", 60)
+    font = pygame.font.Font(way + "\\font\\font.ttf", 60)
     title = font.render("Pepe's Adventures", 1, (181, 24, 24))
     title_rect = title.get_rect()
     title_rect.top = 50
     title_rect.x = 50
     screen.blit(title, title_rect)
 
-    font = pygame.font.Font("C:\\Users\\iriska\\my_project\\kt2\\font\\font.ttf", 35)
+    font = pygame.font.Font(way + "\\font\\font.ttf", 35)
     text_coord = 50 + title_rect.height
     menu_sound.play(-1)
     for line in text:
@@ -501,16 +521,17 @@ def start_screen(text, mode, level_z = None):
             pygame.display.flip()
             clock.tick(fps)
 
+#функция, которая зпускает уровни. обрабатывает все события, происходящие в игре и по сути является ядром программы
 def run_level(level_map, wall_image, ground_image, target_image, portal_image, color, fire_image, level_sound, level_theme):
 
-    with open(way + "kt2\\levels\\text_" + level_map, "r", encoding= 'utf8') as f:
+    with open(way + "\\levels\\text_" + level_map, "r", encoding= 'utf8') as f:
         reader = f.readlines()
         level_text = [i.strip() for i in reader]
     player, target, portals = draw_level(load_level(level_map), wall_image, ground_image, target_image, portal_image, fire_image)
     camera = Camera()
     global sound
-    sound = load_sound(level_sound, 0.2)
-    theme = load_sound(level_theme)
+    sound = load_sound(level_sound, 0.05)
+    theme = load_sound(level_theme, 0.2)
     theme.play()
     sound.play(-1)
     running = True
@@ -666,6 +687,7 @@ def run_level(level_map, wall_image, ground_image, target_image, portal_image, c
         pygame.display.flip()
         clock.tick(fps)
     
+#инициализация групп спрайтов
 all_sprites = pygame.sprite.Group()
 tiles_group = pygame.sprite.Group()
 player_group = pygame.sprite.Group()
@@ -680,26 +702,27 @@ lock_group = pygame.sprite.Group()
 keys_group = pygame.sprite.Group()
 pebbles_group = pygame.sprite.Group()
 
-menu_sound = load_sound("menu.wav", 0.3)
-menu_tick_sound = load_sound("Menu_tick.wav")
-pause_close_sound = load_sound("pause_close.wav")
-pause_open_sound = load_sound("pause_open.wav")
-lock_sound = load_sound("Door_Closed.wav", 0.7)
-unlock_sound = load_sound("Door_Opened.wav")
+#загрузка звуков
+menu_sound = load_sound("menu.wav", 0.05)
+menu_tick_sound = load_sound("Menu_tick.wav",0.5)
+pause_close_sound = load_sound("pause_close.wav",0.5)
+pause_open_sound = load_sound("pause_open.wav",0.5)
+lock_sound = load_sound("Door_Closed.wav", 0.3)
+unlock_sound = load_sound("Door_Opened.wav", 0.3)
 end_sound = load_sound("end.wav", 0.1)
-game_over_sound = load_sound("game_over.wav", 0.5)
-heart_sound = load_sound("heart.wav", 0.7)
+game_over_sound = load_sound("game_over.wav", 0.2)
+heart_sound = load_sound("heart.wav", 0.4)
 key_sound = load_sound("key.wav")
-damage_sound = load_sound("Player_Hit.wav")
-portal_sound = load_sound("portal.wav", 0.4)
-step_sound = load_sound("step_1.wav", 0.4)
-ending_sound = load_sound("theme_level3_2.wav")
-throw_sound = load_sound("throw.wav")
-boss_died_sound = load_sound("boss_died.wav")
-enemy_died_sound = load_sound("throw_enemy.wav")
-pebble_wall_sound = load_sound("throw_wall.wav")
+damage_sound = load_sound("Player_Hit.wav",0.3)
+portal_sound = load_sound("portal.wav", 0.15)
+step_sound = load_sound("step_1.wav", 0.05)
+ending_sound = load_sound("theme_level3_2.wav",0.3)
+throw_sound = load_sound("throw.wav",0.3)
+boss_died_sound = load_sound("boss_died.wav",0.3)
+enemy_died_sound = load_sound("throw_enemy.wav",0.3)
+pebble_wall_sound = load_sound("throw_wall.wav",0.3)
 none_pebbles_sound = load_sound("none_pebbles.wav")
-find_pebble_sound = load_sound("find_pebble.wav")
+find_pebble_sound = load_sound("find_pebble.wav",0.3)
 
-
+#запуск стартового экрана, и, соответственно, игры
 start_screen(text1, "start")
