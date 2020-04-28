@@ -1,7 +1,7 @@
 import pygame, sys, os
 from random import choice
 from csv import reader
-
+from fractions import Fraction
 
 #инициазизация некоторых переменных
 pygame.init()
@@ -59,7 +59,7 @@ def load_level(name):
     return level_map
 
 #функция, которая отрисовывает карты уровней
-def draw_level(level_map, wall_image, ground_image, queen_image, portal_image, fire_image):
+def draw_level(level_map, wall_image, ground_image, queen_image, portal_image, fire_image, enemy_speed):
     new_player, x, y, portals = None, None, None, []
     loading()
     for y in range(len(level_map)):
@@ -90,7 +90,7 @@ def draw_level(level_map, wall_image, ground_image, queen_image, portal_image, f
                 Tile("sand.jpg", x, y)
             elif level_map[y][x] == "@":
                 Tile(ground_image, x, y)
-                Enemy(choice(["angry_pepe_small.png","angry_pepe_small_2.png","angry_pepe_small_3.png"]), x, y)
+                Enemy(choice(["angry_pepe_small.png","angry_pepe_small_2.png","angry_pepe_small_3.png"]), x, y,False, enemy_speed)
             elif level_map[y][x] == "^":
                 Tile(ground_image, x, y)
                 Tile(fire_image, x, y, "fire")
@@ -99,7 +99,7 @@ def draw_level(level_map, wall_image, ground_image, queen_image, portal_image, f
                 Tile(fire_image, x, y, "fire")
             elif level_map[y][x] == "B":
                 Tile(ground_image, x, y)
-                Enemy("rage-pepe.png", x, y, True)
+                Enemy("rage-pepe.png", x, y, True, enemy_speed)
             elif level_map[y][x] == "H":
                 Tile(ground_image, x, y)
                 Tile("health.png", x, y, "health")
@@ -191,48 +191,57 @@ class Player(pygame.sprite.Sprite):
         self.health = 5
         self.time = 0
         self.keys = 0
-        self.pebbles = 3
+        self.pebbles = 5
+        self.motion = False
         self.add(player_group, all_sprites)
     def move_up(self):
         if self.health > 0:
-            step_sound.play()
-            self.rect = self.rect.move(0, -cell_size)
-            if pygame.sprite.spritecollideany(self, lock_group):
-                if self.keys == 0:
-                    lock_sound.play()
+            if self.time % (fps* 1/3) == 0:
+                step_sound.play()
+                self.rect = self.rect.move(0, -cell_size)
+                if pygame.sprite.spritecollideany(self, lock_group):
+                    if self.keys == 0:
+                        lock_sound.play()
+                        self.rect = self.rect.move(0, cell_size)
+                if pygame.sprite.spritecollideany(self, walls_group):
                     self.rect = self.rect.move(0, cell_size)
-            if pygame.sprite.spritecollideany(self, walls_group):
-                self.rect = self.rect.move(0, cell_size)
+            self.time +=1
     def move_down(self):
         if self.health > 0:
-            step_sound.play()
-            self.rect = self.rect.move(0, cell_size)
-            if pygame.sprite.spritecollideany(self, lock_group):
-                if self.keys == 0:
-                    lock_sound.play()
+            if self.time % (fps* 1/3) == 0:
+                step_sound.play()
+                self.rect = self.rect.move(0, cell_size)
+                if pygame.sprite.spritecollideany(self, lock_group):
+                    if self.keys == 0:
+                        lock_sound.play()
+                        self.rect = self.rect.move(0, -cell_size)
+                if pygame.sprite.spritecollideany(self, walls_group):
                     self.rect = self.rect.move(0, -cell_size)
-            if pygame.sprite.spritecollideany(self, walls_group):
-                self.rect = self.rect.move(0, -cell_size)
+            self.time +=1
     def move_left(self):
         if self.health > 0:
-            step_sound.play()
-            self.rect = self.rect.move(-cell_size, 0)
-            if pygame.sprite.spritecollideany(self, lock_group):
-                if self.keys == 0:
-                    lock_sound.play()
+            if self.time % (fps* 1/3) == 0:
+                step_sound.play()
+                self.rect = self.rect.move(-cell_size, 0)
+                if pygame.sprite.spritecollideany(self, lock_group):
+                    if self.keys == 0:
+                        lock_sound.play()
+                        self.rect = self.rect.move(cell_size, 0)
+                if pygame.sprite.spritecollideany(self, walls_group):
                     self.rect = self.rect.move(cell_size, 0)
-            if pygame.sprite.spritecollideany(self, walls_group):
-                self.rect = self.rect.move(cell_size, 0)
+            self.time +=1
     def move_right(self):
         if self.health > 0:
-            step_sound.play()
-            self.rect = self.rect.move(cell_size, 0)
-            if pygame.sprite.spritecollideany(self, lock_group):
-                if self.keys == 0:
-                    lock_sound.play()
+            if self.time % (fps* 1/3) == 0:
+                step_sound.play()
+                self.rect = self.rect.move(cell_size, 0)
+                if pygame.sprite.spritecollideany(self, lock_group):
+                    if self.keys == 0:
+                        lock_sound.play()
+                        self.rect = self.rect.move(-cell_size, 0)
+                if pygame.sprite.spritecollideany(self, walls_group):
                     self.rect = self.rect.move(-cell_size, 0)
-            if pygame.sprite.spritecollideany(self, walls_group):
-                self.rect = self.rect.move(-cell_size, 0)
+            self.time +=1
     def move_portal(self, portals_n):
         if self.health > 0:
             if self.portal:
@@ -303,11 +312,12 @@ class Camera:
 
 #класс врага. определяет поведение враждебных мобов
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, image_enemy, x, y, boss = False):
+    def __init__(self, image_enemy, x, y, boss, enemy_speed):
         super().__init__(all_sprites, enemy_group)
         self.delay = 0
         self.move = True
         self.visible_area = None 
+        self.speed = Fraction(enemy_speed) * fps
         self.image = load_image(image_enemy)
         if boss:
             self.hp = 5
@@ -320,7 +330,7 @@ class Enemy(pygame.sprite.Sprite):
     def update(self):
         rest_enemes = [i for i in enemy_group if i != self]
         self.visible_area = pygame.Rect((self.rect.x - cell_size * 3, self.rect.y - cell_size * 3), (cell_size * 7, cell_size * 7))
-        if self.delay % (fps * 3/4) == 0:
+        if self.delay % self.speed == 0:
             if pygame.Rect.colliderect(self.visible_area, player):
                 self.move = True
                 if self.rect.x < player.rect.x and self.move:
@@ -458,7 +468,7 @@ def start_screen(text, mode, level_z = None):
                     menu_tick_sound.play()
                     for level in levels:
                         clear_all()
-                        run_level(level[0], level[1], level[2], level[3], level[4], (int(level[5]), int(level[6]), int(level[7])), level[8], level[9], level[10])
+                        run_level(level[0], level[1], level[2], level[3], level[4], (int(level[5]), int(level[6]), int(level[7])), level[8], level[9], level[10], level[11])
                     break
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_2:
                     running = False
@@ -482,7 +492,7 @@ def start_screen(text, mode, level_z = None):
                     menu_tick_sound.play()
                     for level in levels:
                         clear_all()
-                        run_level(level[0], level[1], level[2], level[3], level[4], (int(level[5]), int(level[6]), int(level[7])), level[8], level[9], level[10])
+                        run_level(level[0], level[1], level[2], level[3], level[4], (int(level[5]), int(level[6]), int(level[7])), level[8], level[9], level[10], level[11])
                     break
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_2:
                     running = False
@@ -491,7 +501,7 @@ def start_screen(text, mode, level_z = None):
                     for i in [1, 2]:
                         clear_all()
                         level_n = levels[i]
-                        run_level(level_n[0], level_n[1], level_n[2], level_n[3], level_n[4], (int(level_n[5]), int(level_n[6]), int(level_n[7])), level_n[8], level_n[9], level_n[10])
+                        run_level(level_n[0], level_n[1], level_n[2], level_n[3], level_n[4], (int(level_n[5]), int(level_n[6]), int(level_n[7])), level_n[8], level_n[9], level_n[10], level_n[11])
                     break
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_3:
                     running = False
@@ -499,7 +509,7 @@ def start_screen(text, mode, level_z = None):
                     menu_sound.stop()
                     menu_tick_sound.play()
                     level_n = levels[2]
-                    run_level(level_n[0], level_n[1], level_n[2], level_n[3], level_n[4], (int(level_n[5]), int(level_n[6]), int(level_n[7])), level_n[8], level_n[9], level_n[10])
+                    run_level(level_n[0], level_n[1], level_n[2], level_n[3], level_n[4], (int(level_n[5]), int(level_n[6]), int(level_n[7])), level_n[8], level_n[9], level_n[10], level_n[11])
                     break
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_4:
                     running = False
@@ -531,17 +541,17 @@ def start_screen(text, mode, level_z = None):
                         for i in range(2):
                             clear_all()
                             level_n = levels[i]
-                            run_level(level_n[0], level_n[1], level_n[2], level_n[3], level_n[4], (int(level_n[5]), int(level_n[6]), int(level_n[7])), level_n[8], level_n[9], level_n[10])
+                            run_level(level_n[0], level_n[1], level_n[2], level_n[3], level_n[4], (int(level_n[5]), int(level_n[6]), int(level_n[7])), level_n[8], level_n[9], level_n[10], level_n[11])
                     elif level_z == "level2.txt":
                         for i in [1, 2]:
                             clear_all()
                             level_n = levels[i]
-                            run_level(level_n[0], level_n[1], level_n[2], level_n[3], level_n[4], (int(level_n[5]), int(level_n[6]), int(level_n[7])), level_n[8], level_n[9], level_n[10])
+                            run_level(level_n[0], level_n[1], level_n[2], level_n[3], level_n[4], (int(level_n[5]), int(level_n[6]), int(level_n[7])), level_n[8], level_n[9], level_n[10], level_n[11])
                     elif level_z == "level3.txt":
                         level_n = levels[2]
                         clear_all()                      
                         level_n = levels[2]
-                        run_level(level_n[0], level_n[1], level_n[2], level_n[3], level_n[4], (int(level_n[5]), int(level_n[6]), int(level_n[7])), level_n[8], level_n[9], level_n[10])
+                        run_level(level_n[0], level_n[1], level_n[2], level_n[3], level_n[4], (int(level_n[5]), int(level_n[6]), int(level_n[7])), level_n[8], level_n[9], level_n[10], level_n[11])
                     
                     break
                 if event.type == pygame.KEYDOWN and event.key == pygame.K_3:
@@ -558,13 +568,13 @@ def start_screen(text, mode, level_z = None):
             clock.tick(fps)
 
 #функция, которая зпускает уровни. обрабатывает все события, происходящие в игре и по сути является ядром программы
-def run_level(level_map, wall_image, ground_image, target_image, portal_image, color, fire_image, level_sound, level_theme):
+def run_level(level_map, wall_image, ground_image, target_image, portal_image, color, fire_image, level_sound, level_theme, enemy_speed):
 
     with open(way + "\\levels\\text_" + level_map, "r", encoding= 'utf8') as f:
         reader = f.readlines()
         level_text = [i.strip() for i in reader]
     global sound, player
-    player, target, portals = draw_level(load_level(level_map), wall_image, ground_image, target_image, portal_image, fire_image)
+    player, target, portals = draw_level(load_level(level_map), wall_image, ground_image, target_image, portal_image, fire_image, enemy_speed)
     camera = Camera()
     sound = load_sound(level_sound, 0.05)
     theme = load_sound(level_theme, 0.2)
@@ -601,12 +611,20 @@ def run_level(level_map, wall_image, ground_image, target_image, portal_image, c
             if event.type == pygame.QUIT:
                 terminate()
             if event.type == pygame.KEYDOWN and event.key == pygame.K_UP:
+                player.motion = 'up'
+                player.time = 0
                 player.move_up()
             if event.type == pygame.KEYDOWN and event.key == pygame.K_DOWN:
+                player.motion = 'down'
+                player.time = 0
                 player.move_down()
             if event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
+                player.motion = 'left'
+                player.time = 0
                 player.move_left()
             if event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
+                player.motion = 'right'
+                player.time = 0
                 player.move_right()
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 start_screen(text3, "pause", level_map)
@@ -638,6 +656,17 @@ def run_level(level_map, wall_image, ground_image, target_image, portal_image, c
                     player.pebbles -= 1
                 else:
                     none_pebbles_sound.play()
+            if event.type == pygame.KEYUP:
+                player.motion = False
+        
+        if player.motion == "up":
+            player.move_up()
+        if player.motion == "down":
+            player.move_down()
+        if player.motion == "left":
+            player.move_left()
+        if player.motion == "right":
+            player.move_right()
         camera.update(player)
         for sprite in all_sprites:
              camera.apply(sprite)
