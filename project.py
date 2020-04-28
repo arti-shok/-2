@@ -306,6 +306,8 @@ class Enemy(pygame.sprite.Sprite):
     def __init__(self, image_enemy, x, y, boss = False):
         super().__init__(all_sprites, enemy_group)
         self.delay = 0
+        self.move = True
+        self.visible_area = None 
         self.image = load_image(image_enemy)
         if boss:
             self.hp = 5
@@ -316,16 +318,50 @@ class Enemy(pygame.sprite.Sprite):
         self.rect = self.image.get_rect().move(x*cell_size, y*cell_size)
         self.add(all_sprites, enemy_group)
     def update(self):
-        if self.delay % (fps * 1/2) == 0:
-            move = choice([[50,0],[-50,0],[0,50],[0,-50]])
-            self.rect.move_ip(move)
-            if pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, lock_group) or pygame.sprite.spritecollideany(self, fire_group):
-                self.rect.move_ip([-i for i in move])
-            rest_enemes = [i for i in enemy_group if i != self]
-            for enemy in rest_enemes:
-                if pygame.sprite.collide_rect(self,enemy):
+        rest_enemes = [i for i in enemy_group if i != self]
+        self.visible_area = pygame.Rect((self.rect.x - cell_size * 3, self.rect.y - cell_size * 3), (cell_size * 7, cell_size * 7))
+        if self.delay % (fps * 3/4) == 0:
+            if pygame.Rect.colliderect(self.visible_area, player):
+                self.move = True
+                if self.rect.x < player.rect.x and self.move:
+                    self.rect.x += cell_size
+                    self.move = False
+                    if pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, lock_group) or pygame.sprite.spritecollideany(self, fire_group):
+                        self.rect.x -= cell_size
+                        self.move = True
+                elif self.rect.x > player.rect.x and self.move:
+                    self.rect.x -= cell_size
+                    self.move = False
+                    if pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, lock_group) or pygame.sprite.spritecollideany(self, fire_group):
+                        self.rect.x += cell_size
+                        self.move = True
+                if self.rect.y < player.rect.y and self.move:
+                    self.rect.y += cell_size
+                    self.move = False
+                    if pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, lock_group) or pygame.sprite.spritecollideany(self, fire_group):
+                        self.rect.y -= cell_size
+                        self.move = True
+                elif self.rect.y > player.rect.y and self.move:
+                    self.rect.y -= cell_size
+                    self.move = False
+                    if pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, lock_group) or pygame.sprite.spritecollideany(self, fire_group):
+                        self.rect.y += cell_size
+                        self.move = True
+                for enemy in rest_enemes:
+                    if pygame.sprite.collide_rect(self,enemy):
+                        move = choice([[0,50],[0,-50],[50,0],[-50,0]])
+                        self.rect.move_ip(move)
+                        if pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, lock_group) or pygame.sprite.spritecollideany(self, fire_group):
+                            self.rect.move_ip([-i for i in move])
+                        
+            else:
+                move = choice([[0,50],[0,-50],[50,0],[-50,0]])
+                self.rect.move_ip(move)
+                if pygame.sprite.spritecollideany(self, walls_group) or pygame.sprite.spritecollideany(self, lock_group) or pygame.sprite.spritecollideany(self, fire_group):
                     self.rect.move_ip([-i for i in move])
-
+                for enemy in rest_enemes:
+                    if pygame.sprite.collide_rect(self,enemy):
+                        self.rect.move_ip([-i for i in move])
         self.delay +=1
         if pygame.sprite.spritecollideany(self, pebbles_group) and pygame.sprite.spritecollideany(self, pebbles_group).direction:
             pygame.sprite.spritecollideany(self, pebbles_group).kill()
@@ -527,9 +563,9 @@ def run_level(level_map, wall_image, ground_image, target_image, portal_image, c
     with open(way + "\\levels\\text_" + level_map, "r", encoding= 'utf8') as f:
         reader = f.readlines()
         level_text = [i.strip() for i in reader]
+    global sound, player
     player, target, portals = draw_level(load_level(level_map), wall_image, ground_image, target_image, portal_image, fire_image)
     camera = Camera()
-    global sound
     sound = load_sound(level_sound, 0.05)
     theme = load_sound(level_theme, 0.2)
     theme.play()
