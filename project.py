@@ -191,12 +191,14 @@ class Player(pygame.sprite.Sprite):
         self.health = 5
         self.time = 0
         self.keys = 0
-        self.pebbles = 5
+        self.pebbles = 7
         self.motion = False
+        self.damage = True
+        self.last_damage = 0
         self.add(player_group, all_sprites)
     def move_up(self):
         if self.health > 0:
-            if self.time % (fps* 1/3) == 0:
+            if self.time % (fps* 1/4) == 0:
                 step_sound.play()
                 self.rect = self.rect.move(0, -cell_size)
                 if pygame.sprite.spritecollideany(self, lock_group):
@@ -208,7 +210,7 @@ class Player(pygame.sprite.Sprite):
             self.time +=1
     def move_down(self):
         if self.health > 0:
-            if self.time % (fps* 1/3) == 0:
+            if self.time % (fps* 1/4) == 0:
                 step_sound.play()
                 self.rect = self.rect.move(0, cell_size)
                 if pygame.sprite.spritecollideany(self, lock_group):
@@ -220,7 +222,7 @@ class Player(pygame.sprite.Sprite):
             self.time +=1
     def move_left(self):
         if self.health > 0:
-            if self.time % (fps* 1/3) == 0:
+            if self.time % (fps* 1/4) == 0:
                 step_sound.play()
                 self.rect = self.rect.move(-cell_size, 0)
                 if pygame.sprite.spritecollideany(self, lock_group):
@@ -232,7 +234,7 @@ class Player(pygame.sprite.Sprite):
             self.time +=1
     def move_right(self):
         if self.health > 0:
-            if self.time % (fps* 1/3) == 0:
+            if self.time % (fps* 1/4) == 0:
                 step_sound.play()
                 self.rect = self.rect.move(cell_size, 0)
                 if pygame.sprite.spritecollideany(self, lock_group):
@@ -271,7 +273,7 @@ class Player(pygame.sprite.Sprite):
             x -=30
     def get_damage(self):
         if self.health > 0:
-            if self.time % (fps*3/4) == 0:
+            if self.time % (2 * fps) == 0:
                 damage_sound.play()
                 self.health -= 1
                 if self.health == 0:
@@ -310,7 +312,7 @@ class Camera:
         self.dx = -(sprite.rect.x + sprite.rect.w // 2 - width // 2)
         self.dy = -(sprite.rect.y + sprite.rect.h // 2 - height // 2)
 
-#класс врага. определяет поведение враждебных мобов
+#класс врага. определяет поведение враждебных жабок
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, image_enemy, x, y, boss, enemy_speed):
         super().__init__(all_sprites, enemy_group)
@@ -373,12 +375,14 @@ class Enemy(pygame.sprite.Sprite):
                     if pygame.sprite.collide_rect(self,enemy):
                         self.rect.move_ip([-i for i in move])
         self.delay +=1
-        if pygame.sprite.spritecollideany(self, pebbles_group) and pygame.sprite.spritecollideany(self, pebbles_group).direction:
-            pygame.sprite.spritecollideany(self, pebbles_group).kill()
-            self.died_sound.play()
-            self.hp -=1
-            if self.hp == 0:
-                self.kill()
+        if pygame.sprite.spritecollideany(self, pebbles_group):
+            for pebble in pygame.sprite.spritecollide(self, pebbles_group, False):
+                if pebble.direction:
+                    pebble.kill()
+                    self.died_sound.play()
+                    self.hp -=1
+                    if self.hp == 0:
+                        self.kill()
 
 #класс камушка. позволяет поднимать камушки и бросать их, причем урон наносят только брошенные камешки, а статичные ничего не делают
 class Pebble(pygame.sprite.Sprite):
@@ -577,7 +581,7 @@ def run_level(level_map, wall_image, ground_image, target_image, portal_image, c
     player, target, portals = draw_level(load_level(level_map), wall_image, ground_image, target_image, portal_image, fire_image, enemy_speed)
     camera = Camera()
     sound = load_sound(level_sound, 0.05)
-    theme = load_sound(level_theme, 0.2)
+    theme = load_sound(level_theme, 0.8)
     theme.play()
     sound.play(-1)
     running = True
@@ -686,7 +690,18 @@ def run_level(level_map, wall_image, ground_image, target_image, portal_image, c
             player.portal = True
 
         if pygame.sprite.spritecollideany(player, enemy_group) or pygame.sprite.spritecollideany(player, fire_group):
-            player.get_damage() 
+            if player.damage and player.health > 0 and player.last_damage > (2 * fps):
+                damage_sound.play()
+                player.health -= 1
+                if player.health == 0:
+                    game_over_sound.play()
+                player.damage = False
+                player.time = 2
+                player.last_damage = 0
+            player.get_damage()
+        else:
+            player.damage = True 
+        player.last_damage +=1   
 
         if pygame.sprite.groupcollide(player_group, health_group, False, True):
             player.get_health()
